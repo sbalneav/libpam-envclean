@@ -1,0 +1,51 @@
+.TH "PAM_ENVCLEAN" "8" "2016/09/14"
+.nh
+.ad l
+.SH "NAME"
+pam_envclean \- PAM module which fixes pam_systemd XDG_RUNTIME_DIR breakage\&.
+.SH "SYNOPSIS"
+.HP \w'\fBpam_envclean\&.so\fR\
+.SH "DESCRIPTION"
+.PP
+pam_envclean is a PAM module that should be placed after pam_systemd in the
+session stack.  If the session user is different from the XDG_RUNTIME_DIR
+owner, it will unset the variable so that permissions will not get clobbered
+(as in the case of gksu)\&.
+.RE
+.PP
+.SH "MODULE TYPES PROVIDED"
+.PP
+Only the \fBsession\fR module type is provided\&.
+.SH "RETURN VALUES"
+.PP
+.PP
+PAM_SUCCESS
+.RS 4
+The user authenticated successfully\&.
+.RE
+.PP
+PAM_SYSTEM_ERR
+.RS 4
+A system error occurred\&.
+.RE
+.SH "EXAMPLES"
+.PP
+For an authentication line:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+        session required pam_envclean\&.so
+.fi
+.if n \{\
+.RE
+.\}
+.SH "SEE ALSO"
+.PP
+\fBpam.conf\fR(5),
+\fBpam.d\fR(5),
+\fBpam\fR(7)
+.SH "AUTHOR"
+.PP
+pam_envclean was written by Scott Balneaves <sbalneav\&@ltsp\&.org\&>\&.
