@@ -17,12 +17,13 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include <unistd.h>
-#include <syslog.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <string.h>
+#include <unistd.h>
+#include <errno.h>
+#include <syslog.h>
 #include <pwd.h>
-#include <shadow.h>
-#include <crypt.h>
 #include <config.h>
 
 /*
@@ -32,7 +33,7 @@
 #define PAM_SM_SESSION		/* supports session managemtent */
 
 #include <security/pam_modules.h>
-#include <security/pam_modutils.h>
+#include <security/pam_modutil.h>
 
 #define ENVVAR "XDG_RUNTIME_DIR"
 
@@ -46,7 +47,7 @@ pam_sm_open_session (pam_handle_t * pamh, int flags, int argc,
 {
   const char *username;
   const char *runtime_dir;
-  struct passwd *pwent;
+  struct passwd *pw;
   struct stat st;
   int pam_result;
 
@@ -61,8 +62,8 @@ pam_sm_open_session (pam_handle_t * pamh, int flags, int argc,
       return pam_result;
     }
 
-  pwent = pam_modutil_getpwnam (pamh, username);
-  if (!pwent)
+  pw = pam_modutil_getpwnam (pamh, username);
+  if (!pw)
     {
       pam_syslog (pamh, LOG_ERR, "Cannot lookup user %s passwd entry", username);
       return PAM_SYSTEM_ERR;
@@ -72,7 +73,7 @@ pam_sm_open_session (pam_handle_t * pamh, int flags, int argc,
    * Deal with env variable
    */
 
-  if (!(runtime_dir = pam_getenv(pamh, envvar)))
+  if (!(runtime_dir = pam_getenv(pamh, ENVVAR)))
     {
       /* envvar isn't there, just return quietly */
       return PAM_SUCCESS;
@@ -80,13 +81,13 @@ pam_sm_open_session (pam_handle_t * pamh, int flags, int argc,
 
   if (lstat (runtime_dir, &st))
     {
-      pam_syslog(handle, LOG_ERR, "Failed to stat %s: %s", envvar, strerror(errno));
+      pam_syslog(pamh, LOG_ERR, "Failed to stat %s: %s", ENVVAR, strerror(errno));
      return PAM_SYSTEM_ERR;
     }
 
   if (st.st_uid != pw->pw_uid)
     {
-      pam_result = pam_putenv(handle, envvar);
+      pam_result = pam_putenv(pamh, ENVVAR);
       return pam_result;
     }
   else
