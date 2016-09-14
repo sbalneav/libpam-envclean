@@ -1,5 +1,5 @@
 /*
- * pam_sshauth: PAM module for authentication via a remote ssh server.
+ * pam_envclean: PAM module for cleaning the environment of XDG_RUNTIME_DIR
  * Copyright (C) 2016 Scott Balneaves <sbalneav@ltsp.org>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <syslog.h>
+#include <stdlib.h>
 #include <pwd.h>
 #include <config.h>
 
@@ -34,6 +35,7 @@
 
 #include <security/pam_modules.h>
 #include <security/pam_modutil.h>
+#include <security/pam_appl.h>
 
 #define ENVVAR "XDG_RUNTIME_DIR"
 
@@ -46,7 +48,7 @@ pam_sm_open_session (pam_handle_t * pamh, int flags, int argc,
 		     const char **argv)
 {
   const char *username;
-  const char *runtime_dir;
+  char *runtime_dir;
   struct passwd *pw;
   struct stat st;
   int pam_result;
@@ -73,8 +75,10 @@ pam_sm_open_session (pam_handle_t * pamh, int flags, int argc,
    * Deal with env variable
    */
 
-  if (!(runtime_dir = pam_getenv(pamh, ENVVAR)))
+  runtime_dir = getenv(ENVVAR);
+  if (runtime_dir == NULL)
     {
+      pam_syslog(pamh, LOG_INFO, "Couldn't find %s envvar", ENVVAR);
       /* envvar isn't there, just return quietly */
       return PAM_SUCCESS;
     }
@@ -87,11 +91,24 @@ pam_sm_open_session (pam_handle_t * pamh, int flags, int argc,
 
   if (st.st_uid != pw->pw_uid)
     {
-      pam_result = pam_putenv(pamh, ENVVAR);
-      return pam_result;
+      if (unsetenv(ENVVAR))
+        {
+          return PAM_SYSTEM_ERR;
+        }
+      else
+        {
+          return PAM_SUCCESS;
+        }
     }
   else
     {
       return PAM_SUCCESS;
     }
+}
+
+PAM_EXTERN int
+pam_sm_close_session (pam_handle_t * pamh, int flags, int argc,
+		     const char **argv)
+{
+    return PAM_SUCCESS;
 }
